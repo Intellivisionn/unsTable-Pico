@@ -34,7 +34,6 @@ project(unsTable-Pico C CXX ASM)
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
-
 add_executable(unsTable-Pico unsTable-Pico.cpp )
 
 pico_set_program_name(unsTable-Pico "unsTable-Pico")
@@ -51,12 +50,13 @@ target_link_libraries(unsTable-Pico
 # Add the standard include files to the build
 target_include_directories(unsTable-Pico PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
+  ${PICO_SDK_PATH}/lib/cyw43-driver/include
+  ${PICO_SDK_PATH}/src/rp2_common/pico_cyw43_arch/include
 )
 
 # Add any user requested libraries
 target_link_libraries(unsTable-Pico 
-        pico_cyw43_arch_none
+        pico_cyw43_arch_lwip_threadsafe_background
         )
 
 pico_add_extra_outputs(unsTable-Pico)
-
