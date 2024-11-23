@@ -1,4 +1,17 @@
-# Generated Cmake Pico project file
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+if(WIN32)
+    set(USERHOME $ENV{USERPROFILE})
+else()
+    set(USERHOME $ENV{HOME})
+endif()
+set(sdkVersion 2.0.0)
+set(toolchainVersion 13_2_Rel1)
+set(picotoolVersion 2.0.0)
+set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
+if (EXISTS ${picoVscode})
+    include(${picoVscode})
+endif()
+# ====================================================================================
 
 cmake_minimum_required(VERSION 3.13)
 
@@ -9,7 +22,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
 
-# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+# == DO NEVER EDIT THE NEXT LINES for Raspberry Pi Pico VS Code Extension to work ==
 if(WIN32)
     set(USERHOME $ENV{USERPROFILE})
 else()
@@ -28,35 +41,32 @@ set(PICO_BOARD pico_w CACHE STRING "Board type")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(unsTable-Pico C CXX ASM)
+project(unsTablePico_background C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
-add_executable(unsTable-Pico unsTable-Pico.cpp )
-
-pico_set_program_name(unsTable-Pico "unsTable-Pico")
-pico_set_program_version(unsTable-Pico "0.1")
-
-# Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(unsTable-Pico 1)
-pico_enable_stdio_usb(unsTable-Pico 0)
-
-# Add the standard library to the build
-target_link_libraries(unsTable-Pico
-        pico_stdlib)
-
-# Add the standard include files to the build
-target_include_directories(unsTable-Pico PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR}
-  ${PICO_SDK_PATH}/lib/cyw43-driver/include
-  ${PICO_SDK_PATH}/src/rp2_common/pico_cyw43_arch/include
-)
-
-# Add any user requested libraries
-target_link_libraries(unsTable-Pico 
-        pico_cyw43_arch_lwip_threadsafe_background
+add_executable(unsTablePico_background
+        unsTablePico.cpp
         )
 
-pico_add_extra_outputs(unsTable-Pico)
+target_include_directories(unsTablePico_background PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
+        ${pico_sdk}
+        )
+
+target_link_libraries(unsTablePico_background
+        pico_cyw43_arch_lwip_threadsafe_background
+        pico_stdlib
+        )
+
+pico_add_extra_outputs(unsTablePico_background)
+
+pico_set_program_name(unsTablePico_background "unsTablePico_background")
+pico_set_program_version(unsTablePico_background "0.1")
+
+# Modify the below lines to enable/disable output over UART/USB
+pico_enable_stdio_uart(unsTablePico_background 1)
+pico_enable_stdio_usb(unsTablePico_background 0)

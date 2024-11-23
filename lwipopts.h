@@ -1,11 +1,10 @@
-#ifndef LWIPOPTS_H
-#define LWIPOPTS_H
+#ifndef _LWIPOPTS_H
+#define _LWIPOPTS_H
 
-#define NO_SYS 1
-#define LWIP_SOCKET 0
-#define LWIP_NETCONN 0
-#define LWIP_TCP 1
-#define LWIP_IPV4 1
-#define LWIP_IPV6 0
+// Generally you would define your own explicit list of lwIP options
+// (see https://www.nongnu.org/lwip/2_1_x/group__lwip__opts.html)
+//
+// This example uses a common include to avoid repetition
+#include "lwipopts_examples_common.h"
 
-#endif // LWIPOPTS_H
+#endif
