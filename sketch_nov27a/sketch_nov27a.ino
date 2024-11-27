@@ -5,8 +5,8 @@
 #include <Adafruit_SSD1306.h>
 
 // Replace with Supabase details
-const char* supabaseUrl = "https://your-supabase-url.supabase.co"; // Replace with Supabase URL
-const char* supabaseApiKey = "supabase-api-key"; // Replace with API key
+const char* baseUrl = "http://192.168.137.1:8000"; // Replace with Supabase URL
+const char* apiKey = "F7H1vM3kQ5rW8zT9xG2pJ6nY4dL0aZ3K"; // Replace with API key
 
 // OLED display dimensions
 #define SCREEN_WIDTH 128
@@ -101,7 +101,7 @@ void connectToWiFi(const char* ssid, const char* password) {
   Serial.println(WiFi.localIP());
 }
 
-void connectToApi(const char* endpoint, const char* jsonPayload) {
+void APIGetRequest(const char* endpoint) {
   // Ensure Wi-Fi is connected
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("Wi-Fi not connected!");
@@ -109,7 +109,7 @@ void connectToApi(const char* endpoint, const char* jsonPayload) {
   }
 
   // Prepare the full URL for the API endpoint
-  String url = String(supabaseUrl) + endpoint;
+  String url = String(baseUrl) + "/api/v2/" + apiKey + endpoint;
 
   // Create HTTP client
   HTTPClient http;
@@ -117,12 +117,8 @@ void connectToApi(const char* endpoint, const char* jsonPayload) {
   // Begin connection
   http.begin(url);
 
-  // Add necessary headers
-  http.addHeader("Content-Type", "application/json"); // Set content type to JSON
-  http.addHeader("apikey", supabaseApiKey); // Supabase API key for authentication
-
-  // Send POST request with JSON payload
-  int httpResponseCode = http.POST(jsonPayload);
+  // Send GET request
+  int httpResponseCode = http.GET();
 
   // Handle the response
   if (httpResponseCode > 0) {
@@ -144,17 +140,16 @@ void setup() {
   updateDisplay("UnsTable", "Initialising WiFi", 1);
   printAllWiFis();
 
-  const char* ssid = "iPhone";
-  const char* password = "nikocheung";
+  const char* ssid = "78463212";
+  const char* password = "78463212";
 
   connectToWiFi(ssid, password);
 
-  // Define the API endpoint and payload
-  const char* endpoint = "/rest/v1/your_table"; // Replace with your Supabase table
-  const char* payload = "{\"column\": \"value\"}"; // Replace with your JSON payload
+  // Define the endpoint (replace "your_table" with your actual Supabase table name)
+  const char* endpoint = "/desks/ee:62:5b:b8:73:1d/state";
 
-  // Call the API
-  connectToApi(endpoint, payload);
+  // Make the GET request
+  APIGetRequest(endpoint);
 }
 
 void loop() {}
