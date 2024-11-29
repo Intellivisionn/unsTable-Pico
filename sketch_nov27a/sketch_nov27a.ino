@@ -1,9 +1,10 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <PubSubClient.h>
+#include <PubSubClient.h> //mqtt
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <qrcode.h>
+#include <OneButton.h>
 
 // Definitions
 
@@ -24,6 +25,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1); // DisplayInit
 // MQTT WiFi Initialisations
 WiFiClientSecure secureClient; // Secure WiFi client
 PubSubClient mqttClient(secureClient);
+//Button
+#define BUTTON_PIN 10
+OneButton button(BUTTON_PIN, true); // true for internal pull-up -> Create a OneButton object
 
 void printAllWiFis() {
   delay(1000);
@@ -157,6 +161,18 @@ void controlDisplay(const char* command, bool dir = false, float speed = 0.0f, c
     }
 }
 
+void clearDisplayWrapper() {
+    display.clearDisplay();
+    display.display();
+    Serial.println("Display cleared via double-click.");
+}
+
+void QRCodeWrapper() {
+  display.clearDisplay();
+  displayQRCode("https://unstable.com");
+  Serial.println("QR COde Displayed.");
+}
+
 void displayQRCode(const char* content) {
     QRCode qrcode;
     uint8_t qrcodeData[qrcode_getBufferSize(3)];
@@ -195,8 +211,13 @@ void setup() {
   secureClient.setInsecure();
   // Connect to MQTT
   connectToMQTT();
+  
+  // Configure button actions
+  button.attachClick(QRCodeWrapper);
+  button.attachDoubleClick(clearDisplayWrapper);
 
-  displayQRCode("https://unstable.com");
+  QRCodeWrapper();
+  
 }
 
 void loop() {
@@ -211,4 +232,6 @@ void loop() {
   }
 
   mqttClient.loop(); // Process incoming MQTT messages
+
+  button.tick();
 }
