@@ -16,4 +16,8 @@ const char* mqttTopic = "1"; // Subscription topic
 #define BUTTON_PIN 10
 #define BUZZER_PIN 20
 
+// Display Configuration
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
 #endif

@@ -21,6 +21,10 @@ void MQTTClient::connect(const char* clientId, const char* topic, void (*callbac
     }
 }
 
+bool MQTTClient::isConnected() {
+    return mqttClient.connected(); // Wraps PubSubClient's connected() method
+}
+
 void MQTTClient::loop() {
     mqttClient.loop();
 }

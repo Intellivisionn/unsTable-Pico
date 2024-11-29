@@ -47,7 +47,7 @@ void loop() {
         connectToWiFi();
     }
 
-    if (!mqttClient.connected()) {
+    if (!mqttClient.isConnected()) { // Use the correct method
         mqttClient.connect("PicoClient", mqttTopic, [](char* topic, byte* payload, unsigned int length) {
             String message;
             for (unsigned int i = 0; i < length; i++) {
@@ -60,3 +60,4 @@ void loop() {
     mqttClient.loop();
     button.tick();
 }
+
