@@ -15,6 +15,11 @@ public:
     void showText(const char* message);
     void showQRCode(const char* content);
 
+    //Timer functionality
+    void startTimer();
+    void stopTimer();
+    void updateTimer();
+
     // New animations
     void showStartupScrolling(const char* message);
     void showStartupTyping(const char* line1, const char* line2);

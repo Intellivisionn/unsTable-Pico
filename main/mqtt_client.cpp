@@ -1,4 +1,5 @@
 #include "mqtt_client.h"
+#include <ArduinoJson.h>
 
 // Initialize static instance pointer
 MQTTClient* MQTTClient::instance = nullptr;
@@ -50,9 +51,63 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
     Serial.print("Message: ");
     Serial.println(message);
 
-    // Display message on the screen if a display object is set
-    if (display) {
-        display->showText(("MQTT: " + message).c_str());
+    // Parse the JSON payload
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, message);
+
+    if (error) {
+        Serial.print("Failed to parse JSON: ");
+        Serial.println(error.c_str());
+        return;
+    }
+
+    // Extract data
+    int action = doc["action"];
+    const char* content = doc["content"];
+
+    // Perform actions based on `action` value
+    switch (action) {
+        case 0: // User connecting
+            if (content) {
+                String welcomeMessage = String("Hello, ") + content;
+                display.showText(welcomeMessage.c_str());
+
+                // Start counting time (implement in the display or main logic)
+                display.startTimer();
+            }
+            break;
+
+        case 1: // Alert
+            if (content) {
+                String alertMessage = String("ALERT: ") + content;
+                display.showText(alertMessage.c_str());
+
+                // Clear the alert after 1 minute
+                delay(60000);
+                display.clearAlert();
+            }
+            break;
+
+        case 2: // User disconnecting
+            display.showText("Goodbye!");
+            delay(2000);
+            display.clear();
+            break;
+
+        case 3: // Enable/Disable notifications
+            if (content) {
+                bool enableNotifications = strcmp(content, "True") == 0;
+                buzzer.setEnabled(enableNotifications);
+                String notifMessage = enableNotifications ? "Notifications Enabled" : "Notifications Disabled";
+                display.showText(notifMessage.c_str());
+                delay(2000);
+                display.clear();
+            }
+            break;
+
+        default:
+            Serial.println("Unknown action received.");
+            break;
     }
 }
 

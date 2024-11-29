@@ -30,7 +30,7 @@ void setup() {
     //Initialize the display
     display.begin();
 
-    display.showStartupCool("INITIALISING", "unsTABLE Pico");
+     .showStartupCool("INITIALISING", "unsTABLE Pico");
     
     // Startup buzzer notification
     buzzer.playNotification();
@@ -50,13 +50,13 @@ void setup() {
 void loop() {
     // Reconnect Wi-Fi if disconnected
     if (!wifiManager.isConnected()) {
-        Serial.println("Wi-Fi disconnected. Reconnecting...");
+        display.showText("Wi-Fi disconnected. Reconnecting...");
         wifiManager.connectToWiFi();
     }
 
     // Reconnect MQTT if disconnected
     if (!mqttClient.isConnected()) {
-        Serial.println("MQTT disconnected. Reconnecting...");
+        display.showText("MQTT disconnected. Reconnecting...");
         mqttClient.connect("PicoClient", mqttTopic);
     }
 

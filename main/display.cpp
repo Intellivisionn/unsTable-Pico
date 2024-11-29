@@ -1,5 +1,6 @@
 #include "display.h"
 #include <qrcode.h>
+#include <millis.h> // for time tracking
 
 // Constructor
 Display::Display(int width, int height) : display(width, height, &Wire, -1) {}
@@ -116,5 +117,38 @@ void Display::showStartupCool(const char* line1, const char* line2) {
         display.print(line2);
         display.display();
         delay(50); // Scrolling speed
+    }
+}
+
+unsigned long startTime = 0;
+bool timerRunning = false;
+
+// Start the timer
+void Display::startTimer() {
+    timerRunning = true;
+    startTime = millis();
+}
+
+// Stop the timer
+void Display::stopTimer() {
+    timerRunning = false;
+    clear(); // Optionally clear the display when the timer stops
+}
+
+// Update the timer display
+void Display::updateTimer() {
+    if (timerRunning) {
+        unsigned long elapsed = millis() - startTime;
+        int seconds = (elapsed / 1000) % 60;
+        int minutes = (elapsed / 1000) / 60;
+
+        char timeString[16];
+        snprintf(timeString, sizeof(timeString), "Time: %02d:%02d", minutes, seconds);
+
+        clear();
+        setTextSize(1);
+        setCursor(0, 0);
+        print(timeString);
+        display();
     }
 }
