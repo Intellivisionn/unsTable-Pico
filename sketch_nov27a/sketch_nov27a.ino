@@ -1,6 +1,9 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <qrcode.h>
 
 // Definitions
 
@@ -12,9 +15,13 @@
   const int mqttPort = 8883; // TLS MQTT Port
   const char* mqttUsername = "PicoW-1"; // HiveMQ username
   const char* mqttPassword = "unsTable-Best-Group@1"; // HiveMQ password
+// Display
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1); // DisplayInit
 // Table ID
   const char* mqttTopic = "1"; // Topic to subscribe to
-
+// MQTT WiFi Initialisations
 WiFiClientSecure secureClient; // Secure WiFi client
 PubSubClient mqttClient(secureClient);
 
@@ -110,8 +117,76 @@ void connectToMQTT() {
   }
 }
 
+void controlDisplay(const char* command, bool dir = false, float speed = 0.0f, const char* message = nullptr) {
+    if (strcmp(command, "clear") == 0) {
+        display.clearDisplay();
+        display.display();
+        Serial.println("Display cleared.");
+    } 
+    else if (strcmp(command, "fill") == 0) {
+        display.fillScreen(SSD1306_WHITE);
+        display.display();
+        Serial.println("Display filled.");
+    } 
+    else if (strcmp(command, "print_motor") == 0) {
+        display.clearDisplay();
+        display.setTextSize(1); // Set text size
+        display.setTextColor(SSD1306_WHITE); // Set text color
+        display.setCursor(0, 0); // Set cursor to top-left
+        display.println("Motor Control:");
+        display.printf("Dir: %d\n", dir);
+        display.printf("Speed: %.2f\n", speed);
+        display.display();
+        Serial.printf("Motor display updated with Dir: %d, Speed: %.2f.\n", dir, speed);
+    } 
+    else if (strcmp(command, "print_message") == 0) {
+        if (message) {
+            display.clearDisplay();
+            display.setTextSize(1);
+            display.setTextColor(SSD1306_WHITE);
+            display.setCursor(0, 0);
+            display.println(message);
+            display.display();
+            Serial.printf("Message displayed: %s\n", message);
+        } else {
+            Serial.println("Error: No message provided.");
+        }
+    } 
+    else {
+        Serial.printf("Invalid command: %s\n", command);
+    }
+}
+
+void displayQRCode(const char* content) {
+    QRCode qrcode;
+    uint8_t qrcodeData[qrcode_getBufferSize(3)];
+    qrcode_initText(&qrcode, qrcodeData, 3, ECC_LOW, content);
+
+    display.clearDisplay();
+
+    int offset_x = (SCREEN_WIDTH - qrcode.size * 2) / 2;
+    int offset_y = (SCREEN_HEIGHT - qrcode.size * 2) / 2;
+
+    for (uint8_t y = 0; y < qrcode.size; y++) {
+        for (uint8_t x = 0; x < qrcode.size; x++) {
+            if (qrcode_getModule(&qrcode, x, y)) {
+                display.fillRect(offset_x + x * 2, offset_y + y * 2, 2, 2, SSD1306_WHITE);
+            }
+        }
+    }
+
+    display.display();
+}
+
+
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
+
+      // Start the display
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Correct usage
+          Serial.println("SSD1306 allocation failed");
+        for (;;); // Infinite loop to halt execution
+    }
 
   printAllWiFis();
 
@@ -120,6 +195,8 @@ void setup() {
   secureClient.setInsecure();
   // Connect to MQTT
   connectToMQTT();
+
+  displayQRCode("https://unstable.com");
 }
 
 void loop() {
