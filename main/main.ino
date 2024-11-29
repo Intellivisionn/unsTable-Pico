@@ -3,61 +3,77 @@
 #include "button.h"
 #include "display.h"
 #include "mqtt_client.h"
+#include "wifi.h"
 
 // Global Object Instances
 Buzzer buzzer(BUZZER_PIN);
 Display display(SCREEN_WIDTH, SCREEN_HEIGHT);
 MQTTClient mqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword);
-Button button(BUTTON_PIN, []() {
-    display.showQRCode("https://unstable.com");
-    buzzer.playNotification();
-}, []() {
-    display.clear();
-    buzzer.playNotification();
-});
-
-// Wi-Fi Manager
-void connectToWiFi() {
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(1000);
-        Serial.println("Connecting to Wi-Fi...");
+WiFiManager wifiManager(ssid, password);
+Button button(
+    BUTTON_PIN,
+    []() { // Single Click: Show QR Code
+        display.showQRCode("https://unstable.com");
+        buzzer.playNotification();
+        delay(5000);
+        display.clear();
+    },
+    []() { // Double Click: Clear Display
+        display.clear();
+        buzzer.playNotification();
     }
-    Serial.println("Wi-Fi connected!");
+);
+
+// MQTT Callback Function
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+    String message;
+    for (unsigned int i = 0; i < length; i++) {
+        message += (char)payload[i];
+    }
+
+    Serial.print("Message arrived on topic: ");
+    Serial.println(topic);
+    Serial.print("Message: ");
+    Serial.println(message);
+
+    // Show received message on the display
+    display.showText(("MQTT: " + message).c_str());
 }
 
 void setup() {
     Serial.begin(115200);
 
-    // Initialize components
-    buzzer.playNotification(); // Startup sound
+    // Initialize the display
     display.begin();
-    connectToWiFi();
-    mqttClient.connect("PicoClient", mqttTopic, [](char* topic, byte* payload, unsigned int length) {
-        String message;
-        for (unsigned int i = 0; i < length; i++) {
-            message += (char)payload[i];
-        }
-        display.showText(("MQTT: " + message).c_str());
-    });
+    display.clearAndDisplay();
+    Serial.println("Display initialized!");
+
+    // Startup buzzer notification
+    buzzer.playNotification();
+
+    // Connect to Wi-Fi
+    wifiManager.connectToWiFi();
+
+    // Connect to MQTT broker
+    mqttClient.connect("PicoClient", mqttTopic, mqttCallback);
 }
 
 void loop() {
-    if (WiFi.status() != WL_CONNECTED) {
-        connectToWiFi();
+    // Reconnect Wi-Fi if disconnected
+    if (!wifiManager.isConnected()) {
+        Serial.println("Wi-Fi disconnected. Reconnecting...");
+        wifiManager.connectToWiFi();
     }
 
-    if (!mqttClient.isConnected()) { // Use the correct method
-        mqttClient.connect("PicoClient", mqttTopic, [](char* topic, byte* payload, unsigned int length) {
-            String message;
-            for (unsigned int i = 0; i < length; i++) {
-                message += (char)payload[i];
-            }
-            display.showText(("MQTT: " + message).c_str());
-        });
+    // Reconnect MQTT if disconnected
+    if (!mqttClient.isConnected()) {
+        Serial.println("MQTT disconnected. Reconnecting...");
+        mqttClient.connect("PicoClient", mqttTopic, mqttCallback);
     }
 
+    // Process MQTT messages
     mqttClient.loop();
+
+    // Process button actions
     button.tick();
 }
-
