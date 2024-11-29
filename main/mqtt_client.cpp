@@ -1,14 +1,15 @@
 #include "mqtt_client.h"
+#include <ArduinoJson.h>
 
-// Initialize static instance pointer
+// Define the static instance member
 MQTTClient* MQTTClient::instance = nullptr;
 
 // Constructor
 MQTTClient::MQTTClient(const char* server, int port, const char* username, const char* password)
-    : mqttClient(secureClient), mqttUsername(username), mqttPassword(password) {
+    : mqttClient(secureClient), mqttUsername(username), mqttPassword(password), display(nullptr), buzzer(nullptr),
+      enableNotifications(true), notificationEndTime(0), isNotificationActive(false) {
     mqttClient.setServer(server, port);
     secureClient.setInsecure(); // Simplify TLS handling
-    display = nullptr;          // Ensure display reference is null by default
     instance = this;            // Assign this instance to the static pointer
 }
 
@@ -50,9 +51,93 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
     Serial.print("Message: ");
     Serial.println(message);
 
-    // Display message on the screen if a display object is set
-    if (display) {
-        display->showText(("MQTT: " + message).c_str());
+    // Parse the JSON payload
+    DynamicJsonDocument doc(200); // Use DynamicJsonDocument to avoid deprecation warning
+    DeserializationError error = deserializeJson(doc, message);
+
+    if (error) {
+        Serial.print("Failed to parse JSON: ");
+        Serial.println(error.c_str());
+        return;
+    }
+
+    // Extract data
+    int action = doc["action"];
+    const char* content = doc["content"];
+
+    // Clear any active notification before handling the new message
+    clearNotification();
+
+    // Perform actions based on `action` value
+    switch (action) {
+        case 0: // User connecting
+            if (content) {
+                if (buzzer) buzzer->playNotification();
+                String welcomeMessage = String("Hello, ") + content;
+                display->showText(welcomeMessage.c_str());
+                display->startTimer();
+                isNotificationActive = true; // Mark notification as active
+                notificationEndTime = millis() + 10000; // Show for 10 seconds
+            }
+            break;
+
+        case 1: // Alert
+            if (content) {
+                if (buzzer) buzzer->playNotification();
+                String alertMessage = String("ALERT: ") + content;
+                display->showText(alertMessage.c_str());
+                isNotificationActive = true; // Mark notification as active
+                notificationEndTime = millis() + 15000; // Show for 60 seconds
+            }
+            break;
+
+        case 2: // User disconnecting
+            display->showText("Goodbye!");
+            if (buzzer) buzzer->playNotification();
+            display->stopTimer();
+            isNotificationActive = true; // Mark notification as active
+            notificationEndTime = millis() + 2000; // Show for 2 seconds
+            break;
+
+        case 3: // Toggle Notifications
+            if (content && buzzer) {
+                enableNotifications = strcmp(content, "True") == 0;
+                buzzer->setEnabled(enableNotifications);
+                if (display) {
+                    display->showText(enableNotifications ? "Notifications Enabled" : "Notifications Disabled");
+                    if (enableNotifications && buzzer) buzzer->playNotification(); // Trigger sound if notifications are enabled
+                    isNotificationActive = true;
+                    notificationEndTime = millis() + 2000; // Show for 2 seconds
+                }
+            }
+            break;
+
+        default:
+            Serial.println("Unknown action received.");
+            break;
+    }
+}
+
+// Clear the current notification
+void MQTTClient::clearNotification() {
+    if (isNotificationActive) {
+        display->clear();
+        isNotificationActive = false;
+        notificationEndTime = 0;
+    }
+}
+
+// Set Display Pointer
+void MQTTClient::setDisplay(Display* display) {
+    this->display = display;
+}
+
+// Set Buzzer Pointer
+void MQTTClient::setBuzzer(Buzzer* buzzer) {
+    this->buzzer = buzzer;
+
+    if (buzzer) {
+        buzzer->setEnabled(enableNotifications);
     }
 }
 
@@ -64,9 +149,9 @@ bool MQTTClient::isConnected() {
 // Process MQTT messages
 void MQTTClient::loop() {
     mqttClient.loop();
-}
 
-// Set the display object
-void MQTTClient::setDisplay(Display* display) {
-    this->display = display;
+    // Check if the notification needs to be cleared
+    if (isNotificationActive && millis() > notificationEndTime) {
+        clearNotification();
+    }
 }

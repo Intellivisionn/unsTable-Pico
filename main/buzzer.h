@@ -10,6 +10,7 @@ private:
 public:
     Buzzer(uint8_t buzzerPin);
     void playNotification();
+    void setEnabled(bool enabled);
 };
 
 #endif
