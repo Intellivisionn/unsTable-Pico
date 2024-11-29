@@ -13,6 +13,10 @@ private:
     WiFiClientSecure secureClient;
     PubSubClient mqttClient;
 
+    unsigned long notificationEndTime; // Tracks when the current notification should end
+    bool isNotificationActive;        // Tracks if a notification is currently active
+    void clearNotification();         // Helper to clear the current notification
+
     const char* mqttUsername;
     const char* mqttPassword;
     const char* topic;

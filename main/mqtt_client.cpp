@@ -6,7 +6,8 @@ MQTTClient* MQTTClient::instance = nullptr;
 
 // Constructor
 MQTTClient::MQTTClient(const char* server, int port, const char* username, const char* password)
-    : mqttClient(secureClient), mqttUsername(username), mqttPassword(password), display(nullptr), buzzer(nullptr), enableNotifications(true) {
+    : mqttClient(secureClient), mqttUsername(username), mqttPassword(password), display(nullptr), buzzer(nullptr),
+      enableNotifications(true), notificationEndTime(0), isNotificationActive(false) {
     mqttClient.setServer(server, port);
     secureClient.setInsecure(); // Simplify TLS handling
     instance = this;            // Assign this instance to the static pointer
@@ -64,43 +65,48 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
     int action = doc["action"];
     const char* content = doc["content"];
 
+    // Clear any active notification before handling the new message
+    clearNotification();
+
     // Perform actions based on `action` value
     switch (action) {
         case 0: // User connecting
             if (content) {
+                if (buzzer) buzzer->playNotification();
                 String welcomeMessage = String("Hello, ") + content;
                 display->showText(welcomeMessage.c_str());
-
-                // Start counting time (implement in the display or main logic)
                 display->startTimer();
+                isNotificationActive = true; // Mark notification as active
+                notificationEndTime = millis() + 10000; // Show for 10 seconds
             }
             break;
 
         case 1: // Alert
             if (content) {
+                if (buzzer) buzzer->playNotification();
                 String alertMessage = String("ALERT: ") + content;
                 display->showText(alertMessage.c_str());
-
-                // Clear the alert after 1 minute
-                delay(60000);
-                display->clear();
+                isNotificationActive = true; // Mark notification as active
+                notificationEndTime = millis() + 60000; // Show for 60 seconds
             }
             break;
 
         case 2: // User disconnecting
             display->showText("Goodbye!");
-            delay(2000);
-            display->clear();
+            if (buzzer) buzzer->playNotification();
+            isNotificationActive = true; // Mark notification as active
+            notificationEndTime = millis() + 2000; // Show for 2 seconds
             break;
 
         case 3: // Toggle Notifications
             if (content && buzzer) {
-                enableNotifications = strcmp(content, "True") == 0; // Update member variable
-                buzzer->setEnabled(enableNotifications);           // Pass the updated value to Buzzer
+                enableNotifications = strcmp(content, "True") == 0;
+                buzzer->setEnabled(enableNotifications);
                 if (display) {
                     display->showText(enableNotifications ? "Notifications Enabled" : "Notifications Disabled");
-                    delay(2000);
-                    display->clear();
+                    if (enableNotifications && buzzer) buzzer->playNotification(); // Trigger sound if notifications are enabled
+                    isNotificationActive = true;
+                    notificationEndTime = millis() + 2000; // Show for 2 seconds
                 }
             }
             break;
@@ -108,6 +114,15 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
         default:
             Serial.println("Unknown action received.");
             break;
+    }
+}
+
+// Clear the current notification
+void MQTTClient::clearNotification() {
+    if (isNotificationActive) {
+        display->clear();
+        isNotificationActive = false;
+        notificationEndTime = 0;
     }
 }
 
@@ -133,4 +148,9 @@ bool MQTTClient::isConnected() {
 // Process MQTT messages
 void MQTTClient::loop() {
     mqttClient.loop();
+
+    // Check if the notification needs to be cleared
+    if (isNotificationActive && millis() > notificationEndTime) {
+        clearNotification();
+    }
 }

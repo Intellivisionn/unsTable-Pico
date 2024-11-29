@@ -39,8 +39,8 @@ void setup() {
     wifiManager.connectToWiFi();
 
     // Set the display for MQTT messages
-    mqttClient.setDisplay(&display);
     mqttClient.setBuzzer(&buzzer);
+    mqttClient.setDisplay(&display);
 
     // Connect to MQTT broker
     mqttClient.connect("PicoClient", mqttTopic);
@@ -53,12 +53,14 @@ void loop() {
     if (!wifiManager.isConnected()) {
         display.showText("Wi-Fi disconnected. Reconnecting...");
         wifiManager.connectToWiFi();
+        display.clear();
     }
 
     // Reconnect MQTT if disconnected
     if (!mqttClient.isConnected()) {
         display.showText("MQTT disconnected. Reconnecting...");
         mqttClient.connect("PicoClient", mqttTopic);
+        display.clear();
     }
 
     // Process MQTT messages
