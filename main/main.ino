@@ -9,14 +9,16 @@
 Buzzer buzzer(BUZZER_PIN);
 Display display(SCREEN_WIDTH, SCREEN_HEIGHT);
 MQTTClient mqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword);
-WiFiManager wifiManager(ssid, password);
+WiFiManager wifiManager(ssid, password); // WiFi manager instance
+
+// Forward declaration
+void startQRDisplay();
+
+// Button Instance
 Button button(
     BUTTON_PIN,
     []() { // Single Click: Show QR Code
-        display.showQRCode("https://unstable.com");
-        buzzer.playNotification();
-        delay(5000);
-        display.clear();
+        startQRDisplay();
     },
     []() { // Double Click: Clear Display
         display.clear();
@@ -24,43 +26,49 @@ Button button(
     }
 );
 
+// QR Code State Variables
+bool isQRDisplaying = false;
+unsigned long qrDisplayEndTime = 0;
+
+// Function to start QR Code Display
+void startQRDisplay() {
+    if (!isQRDisplaying) {
+        display.showQRCode("https://unstable.com");
+        buzzer.playNotification();
+        isQRDisplaying = true;
+        qrDisplayEndTime = millis() + 30000; // Display for 30 seconds
+    }
+}
+
+// Setup Function
 void setup() {
     Serial.begin(115200);
 
-    //Initialize the display
-    display.begin();
-
-    display.showStartupCool("INITIALISING", "unsTABLE Pico");
-
-    // Startup buzzer notification
+    // Initialize components
     buzzer.playNotification();
+    display.begin();
+    mqttClient.setDisplay(&display);
+    mqttClient.setBuzzer(&buzzer);
 
     // Connect to Wi-Fi
     wifiManager.connectToWiFi();
 
-    // Set the display for MQTT messages
-    mqttClient.setBuzzer(&buzzer);
-    mqttClient.setDisplay(&display);
-
     // Connect to MQTT broker
     mqttClient.connect("PicoClient", mqttTopic);
-
-    display.clear();
 }
 
+// Loop Function
 void loop() {
     // Reconnect Wi-Fi if disconnected
     if (!wifiManager.isConnected()) {
-        display.showText("Wi-Fi disconnected. Reconnecting...");
+        Serial.println("Wi-Fi disconnected. Reconnecting...");
         wifiManager.connectToWiFi();
-        display.clear();
     }
 
     // Reconnect MQTT if disconnected
     if (!mqttClient.isConnected()) {
-        display.showText("MQTT disconnected. Reconnecting...");
+        Serial.println("MQTT disconnected. Reconnecting...");
         mqttClient.connect("PicoClient", mqttTopic);
-        display.clear();
     }
 
     // Process MQTT messages
@@ -68,4 +76,12 @@ void loop() {
 
     // Process button actions
     button.tick();
+
+    // Handle QR Code display timeout
+    if (isQRDisplaying) {
+        if (millis() > qrDisplayEndTime || mqttClient.notificationActive()) {
+            display.clear();
+            isQRDisplaying = false;
+        }
+    }
 }

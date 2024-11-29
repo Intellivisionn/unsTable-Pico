@@ -30,6 +30,7 @@ private:
     bool enableNotifications = true; // Default to notifications enabled
 
 public:
+    bool notificationActive() const { return isNotificationActive; }
     MQTTClient(const char* server, int port, const char* username, const char* password);
     void setBuzzer(Buzzer* buzzer);
 
