@@ -1,9 +1,15 @@
-#ifdef BUZZER_H
+#ifndef BUZZER_H
 #define BUZZER_H
 
 #include <Arduino.h>
 
-void setupBuzzer(int pin);
-void notificationSound();
+class Buzzer {
+private:
+    uint8_t pin;
+
+public:
+    Buzzer(uint8_t buzzerPin);
+    void playNotification();
+};
 
 #endif
