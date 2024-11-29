@@ -57,6 +57,8 @@ void setup() {
 
     // Connect to MQTT broker
     mqttClient.connect("PicoClient", mqttTopic);
+
+    display.clear();
 }
 
 // Loop Function
@@ -94,4 +96,5 @@ void loop() {
         // If you want to keep it longer, adjust the condition here.
         isNotificationActive = false;
     }
+    display.updateTimer();
 }

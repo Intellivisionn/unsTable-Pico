@@ -87,13 +87,14 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
                 String alertMessage = String("ALERT: ") + content;
                 display->showText(alertMessage.c_str());
                 isNotificationActive = true; // Mark notification as active
-                notificationEndTime = millis() + 60000; // Show for 60 seconds
+                notificationEndTime = millis() + 15000; // Show for 60 seconds
             }
             break;
 
         case 2: // User disconnecting
             display->showText("Goodbye!");
             if (buzzer) buzzer->playNotification();
+            display->stopTimer();
             isNotificationActive = true; // Mark notification as active
             notificationEndTime = millis() + 2000; // Show for 2 seconds
             break;
