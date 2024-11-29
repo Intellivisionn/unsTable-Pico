@@ -5,14 +5,15 @@
 // Definitions
 
 // WiFi
-  const char* ssid = "78463212";
-  const char* password = "78463212";
+  const char* ssid = "The LAN of Svens";
+  const char* password = "28449979000";
 // HiveMQ Cloud configuration
   const char* mqttServer = "2b2ceeac5b834b68916739afa28908c6.s1.eu.hivemq.cloud";
   const int mqttPort = 8883; // TLS MQTT Port
-  const char* mqttUsername = "hivemq.webclient.1732816681766"; // HiveMQ username
-  const char* mqttPassword = "zS<19>8,.X2nDRsTpmQy"; // HiveMQ password
-  const char* mqttTopic = "notifications/ringer"; // Topic to subscribe to
+  const char* mqttUsername = "PicoW-1"; // HiveMQ username
+  const char* mqttPassword = "unsTable-Best-Group@1"; // HiveMQ password
+// Table ID
+  const char* mqttTopic = "1"; // Topic to subscribe to
 
 WiFiClientSecure secureClient; // Secure WiFi client
 PubSubClient mqttClient(secureClient);
@@ -114,9 +115,6 @@ void setup() {
 
   printAllWiFis();
 
-  const char* ssid = "78463212";
-  const char* password = "78463212";
-
   connectToWiFi(ssid, password);
 
   secureClient.setInsecure();
@@ -124,4 +122,16 @@ void setup() {
   connectToMQTT();
 }
 
-void loop() {}
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Wi-Fi disconnected. Reconnecting...");
+    connectToWiFi(ssid, password);
+  }
+
+  if (!mqttClient.connected()) {
+    Serial.println("MQTT disconnected. Reconnecting...");
+    connectToMQTT();
+  }
+
+  mqttClient.loop(); // Process incoming MQTT messages
+}
