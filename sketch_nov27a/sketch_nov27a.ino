@@ -29,6 +29,37 @@ PubSubClient mqttClient(secureClient);
 #define BUTTON_PIN 10
 OneButton button(BUTTON_PIN, true); // true for internal pull-up -> Create a OneButton object
 
+// Buzzer Configuration
+#define BUZZER_PIN 20
+
+// Generate a tone on the given pin
+void tone(uint8_t pin, unsigned int frequency, unsigned long duration) {
+    pinMode(pin, OUTPUT); // Set the pin as output
+    unsigned long halfPeriod = 1000000L / (frequency * 2);
+    unsigned long cycles = frequency * duration / 1000;
+
+    for (unsigned long i = 0; i < cycles; i++) {
+        digitalWrite(pin, HIGH);
+        delayMicroseconds(halfPeriod);
+        digitalWrite(pin, LOW);
+        delayMicroseconds(halfPeriod);
+    }
+}
+
+// Stop the tone on the given pin
+void noTone(uint8_t pin) {
+    digitalWrite(pin, LOW); // Ensure the pin is low
+}
+
+// Function for notification sound
+void notificationSound() {
+    tone(BUZZER_PIN, 1000, 200); // Play 1 kHz tone for 200 ms
+    delay(300); // Wait for 300 ms
+    tone(BUZZER_PIN, 1500, 200); // Play 1.5 kHz tone for 200 ms
+    delay(300); // Wait for 300 ms
+    noTone(BUZZER_PIN);         // Stop the tone
+}
+
 void printAllWiFis() {
   delay(1000);
 
@@ -165,12 +196,14 @@ void clearDisplayWrapper() {
     display.clearDisplay();
     display.display();
     Serial.println("Display cleared via double-click.");
+    notificationSound();
 }
 
 void QRCodeWrapper() {
   display.clearDisplay();
   displayQRCode("https://unstable.com");
   Serial.println("QR COde Displayed.");
+  notificationSound();
 }
 
 void displayQRCode(const char* content) {
@@ -190,7 +223,6 @@ void displayQRCode(const char* content) {
             }
         }
     }
-
     display.display();
 }
 
