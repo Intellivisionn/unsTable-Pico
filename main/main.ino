@@ -8,35 +8,35 @@
 // Global Object Instances
 Buzzer buzzer(BUZZER_PIN);
 Display display(SCREEN_WIDTH, SCREEN_HEIGHT);
-MQTTClient mqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword);
 WiFiManager wifiManager(ssid, password); // WiFi manager instance
-
-// Forward declaration
+MQTTClient mqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword); // MQTT client instance
 void startQRDisplay();
 
 // Button Instance
 Button button(
     BUTTON_PIN,
     []() { // Single Click: Show QR Code
-        startQRDisplay();
+        startQRDisplay(); // Call the function to display the QR code
     },
-    []() { // Double Click: Clear Display
-        display.clear();
-        buzzer.playNotification();
+    []() { // Double Click: Clear Display -> now also QR code
+        //display.clear();
+        //buzzer.playNotification();
+        startQRDisplay();
     }
 );
 
 // QR Code State Variables
 bool isQRDisplaying = false;
 unsigned long qrDisplayEndTime = 0;
+bool isNotificationActive = false;  // Track whether a notification is active
 
 // Function to start QR Code Display
 void startQRDisplay() {
-    if (!isQRDisplaying) {
+    if (!isQRDisplaying && !isNotificationActive) {
         display.showQRCode("https://unstable.com");
         buzzer.playNotification();
         isQRDisplaying = true;
-        qrDisplayEndTime = millis() + 30000; // Display for 30 seconds
+        qrDisplayEndTime = millis() + 30000; // Display QR for 30 seconds
     }
 }
 
@@ -47,6 +47,8 @@ void setup() {
     // Initialize components
     buzzer.playNotification();
     display.begin();
+    display.showStartupCool("Initialising", "unsTable: Linak Deskline");
+
     mqttClient.setDisplay(&display);
     mqttClient.setBuzzer(&buzzer);
 
@@ -77,11 +79,19 @@ void loop() {
     // Process button actions
     button.tick();
 
-    // Handle QR Code display timeout
+    // Handle QR Code display timeout and notification logic
     if (isQRDisplaying) {
-        if (millis() > qrDisplayEndTime || mqttClient.notificationActive()) {
+        if (millis() > qrDisplayEndTime) {
+            // If QR code time is up, clear it
             display.clear();
             isQRDisplaying = false;
         }
+    }
+
+    // If a notification comes, interrupt QR code display
+    if (isNotificationActive) {
+        display.showText("New Notification!");
+        // If you want to keep it longer, adjust the condition here.
+        isNotificationActive = false;
     }
 }
