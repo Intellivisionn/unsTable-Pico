@@ -24,22 +24,6 @@ Button button(
     }
 );
 
-// MQTT Callback Function
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
-    String message;
-    for (unsigned int i = 0; i < length; i++) {
-        message += (char)payload[i];
-    }
-
-    Serial.print("Message arrived on topic: ");
-    Serial.println(topic);
-    Serial.print("Message: ");
-    Serial.println(message);
-
-    // Show received message on the display
-    display.showText(("MQTT: " + message).c_str());
-}
-
 void setup() {
     Serial.begin(115200);
 
@@ -54,8 +38,11 @@ void setup() {
     // Connect to Wi-Fi
     wifiManager.connectToWiFi();
 
+    // Set the display for MQTT messages
+    mqttClient.setDisplay(&display);
+
     // Connect to MQTT broker
-    mqttClient.connect("PicoClient", mqttTopic, mqttCallback);
+    mqttClient.connect("PicoClient", mqttTopic);
 }
 
 void loop() {
@@ -68,7 +55,7 @@ void loop() {
     // Reconnect MQTT if disconnected
     if (!mqttClient.isConnected()) {
         Serial.println("MQTT disconnected. Reconnecting...");
-        mqttClient.connect("PicoClient", mqttTopic, mqttCallback);
+        mqttClient.connect("PicoClient", mqttTopic);
     }
 
     // Process MQTT messages
