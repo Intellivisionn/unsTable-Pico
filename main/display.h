@@ -15,8 +15,10 @@ public:
     void showText(const char* message);
     void showQRCode(const char* content);
 
-    // New public method to call `display`
-    void clearAndDisplay();
+    // New animations
+    void showStartupScrolling(const char* message);
+    void showStartupTyping(const char* line1, const char* line2);
+    void showStartupCool(const char* line1, const char* line2);
 };
 
 #endif

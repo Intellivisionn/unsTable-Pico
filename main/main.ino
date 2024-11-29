@@ -27,11 +27,11 @@ Button button(
 void setup() {
     Serial.begin(115200);
 
-    // Initialize the display
+    //Initialize the display
     display.begin();
-    display.clearAndDisplay();
-    Serial.println("Display initialized!");
 
+    display.showStartupCool("INITIALISING", "unsTABLE Pico");
+    
     // Startup buzzer notification
     buzzer.playNotification();
 
@@ -43,6 +43,8 @@ void setup() {
 
     // Connect to MQTT broker
     mqttClient.connect("PicoClient", mqttTopic);
+
+    display.clear();
 }
 
 void loop() {
