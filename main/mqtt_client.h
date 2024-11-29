@@ -14,9 +14,9 @@ private:
     const char* mqttUsername;
     const char* mqttPassword;
     const char* topic;
-
-    // Optional reference to a Display object for showing messages
     Display* display;
+
+    static MQTTClient* instance; // Singleton instance for callback routing
 
     // Internal callback handler
     void messageCallback(char* topic, byte* payload, unsigned int length);
@@ -24,13 +24,14 @@ private:
 public:
     MQTTClient(const char* server, int port, const char* username, const char* password);
 
-    // Methods
     void connect(const char* clientId, const char* topic);
     void loop();
     bool isConnected();
 
-    // Setters
     void setDisplay(Display* display);
+
+    // Static callback function
+    static void staticCallback(char* topic, uint8_t* payload, unsigned int length);
 };
 
 #endif

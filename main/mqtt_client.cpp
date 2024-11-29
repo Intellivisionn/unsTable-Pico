@@ -1,19 +1,21 @@
 #include "mqtt_client.h"
 
+// Initialize static instance pointer
+MQTTClient* MQTTClient::instance = nullptr;
+
 // Constructor
 MQTTClient::MQTTClient(const char* server, int port, const char* username, const char* password)
     : mqttClient(secureClient), mqttUsername(username), mqttPassword(password) {
     mqttClient.setServer(server, port);
-    secureClient.setInsecure(); // Simplify TLS handling for development
+    secureClient.setInsecure(); // Simplify TLS handling
     display = nullptr;          // Ensure display reference is null by default
+    instance = this;            // Assign this instance to the static pointer
 }
 
 // Connect to the MQTT broker
 void MQTTClient::connect(const char* clientId, const char* topic) {
     this->topic = topic; // Store the topic
-    mqttClient.setCallback([this](char* topic, byte* payload, unsigned int length) {
-        this->messageCallback(topic, payload, length);
-    });
+    mqttClient.setCallback(staticCallback); // Set the static callback
 
     while (!mqttClient.connected()) {
         Serial.print("Connecting to MQTT...");
@@ -26,6 +28,13 @@ void MQTTClient::connect(const char* clientId, const char* topic) {
             Serial.println(mqttClient.state());
             delay(5000); // Retry after 5 seconds
         }
+    }
+}
+
+// Static callback function
+void MQTTClient::staticCallback(char* topic, uint8_t* payload, unsigned int length) {
+    if (instance) {
+        instance->messageCallback(topic, payload, length);
     }
 }
 
