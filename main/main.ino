@@ -30,8 +30,8 @@ void setup() {
     //Initialize the display
     display.begin();
 
-     .showStartupCool("INITIALISING", "unsTABLE Pico");
-    
+    display.showStartupCool("INITIALISING", "unsTABLE Pico");
+
     // Startup buzzer notification
     buzzer.playNotification();
 
@@ -40,6 +40,7 @@ void setup() {
 
     // Set the display for MQTT messages
     mqttClient.setDisplay(&display);
+    mqttClient.setBuzzer(&buzzer);
 
     // Connect to MQTT broker
     mqttClient.connect("PicoClient", mqttTopic);

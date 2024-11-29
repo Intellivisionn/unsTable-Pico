@@ -1,15 +1,14 @@
 #include "mqtt_client.h"
 #include <ArduinoJson.h>
 
-// Initialize static instance pointer
+// Define the static instance member
 MQTTClient* MQTTClient::instance = nullptr;
 
 // Constructor
 MQTTClient::MQTTClient(const char* server, int port, const char* username, const char* password)
-    : mqttClient(secureClient), mqttUsername(username), mqttPassword(password) {
+    : mqttClient(secureClient), mqttUsername(username), mqttPassword(password), display(nullptr), buzzer(nullptr), enableNotifications(true) {
     mqttClient.setServer(server, port);
     secureClient.setInsecure(); // Simplify TLS handling
-    display = nullptr;          // Ensure display reference is null by default
     instance = this;            // Assign this instance to the static pointer
 }
 
@@ -52,7 +51,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
     Serial.println(message);
 
     // Parse the JSON payload
-    StaticJsonDocument<200> doc;
+    DynamicJsonDocument doc(200); // Use DynamicJsonDocument to avoid deprecation warning
     DeserializationError error = deserializeJson(doc, message);
 
     if (error) {
@@ -70,44 +69,59 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
         case 0: // User connecting
             if (content) {
                 String welcomeMessage = String("Hello, ") + content;
-                display.showText(welcomeMessage.c_str());
+                display->showText(welcomeMessage.c_str());
 
                 // Start counting time (implement in the display or main logic)
-                display.startTimer();
+                display->startTimer();
             }
             break;
 
         case 1: // Alert
             if (content) {
                 String alertMessage = String("ALERT: ") + content;
-                display.showText(alertMessage.c_str());
+                display->showText(alertMessage.c_str());
 
                 // Clear the alert after 1 minute
                 delay(60000);
-                display.clearAlert();
+                display->clear();
             }
             break;
 
         case 2: // User disconnecting
-            display.showText("Goodbye!");
+            display->showText("Goodbye!");
             delay(2000);
-            display.clear();
+            display->clear();
             break;
 
-        case 3: // Enable/Disable notifications
-            if (content) {
-                bool enableNotifications = strcmp(content, "True") == 0;
-                buzzer.setEnabled(enableNotifications);
-                String notifMessage = enableNotifications ? "Notifications Enabled" : "Notifications Disabled";
-                display.showText(notifMessage.c_str());
-                delay(2000);
-                display.clear();
+        case 3: // Toggle Notifications
+            if (content && buzzer) {
+                enableNotifications = strcmp(content, "True") == 0; // Update member variable
+                buzzer->setEnabled(enableNotifications);           // Pass the updated value to Buzzer
+                if (display) {
+                    display->showText(enableNotifications ? "Notifications Enabled" : "Notifications Disabled");
+                    delay(2000);
+                    display->clear();
+                }
             }
             break;
 
         default:
             Serial.println("Unknown action received.");
             break;
+    }
+}
+
+// Set Display Pointer
+void MQTTClient::setDisplay(Display* display) {
+    this->display = display;
+}
+
+// Set Buzzer Pointer
+void MQTTClient::setBuzzer(Buzzer* buzzer) {
+    this->buzzer = buzzer;
+
+    if (buzzer) {
+        buzzer->setEnabled(enableNotifications);
     }
 }
 
@@ -119,9 +133,4 @@ bool MQTTClient::isConnected() {
 // Process MQTT messages
 void MQTTClient::loop() {
     mqttClient.loop();
-}
-
-// Set the display object
-void MQTTClient::setDisplay(Display* display) {
-    this->display = display;
 }

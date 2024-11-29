@@ -5,8 +5,10 @@
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include "display.h"
+#include "buzzer.h" // Ensure Buzzer is included
 
 class MQTTClient {
+    Buzzer* buzzer; // Add a pointer to the Buzzer class
 private:
     WiFiClientSecure secureClient;
     PubSubClient mqttClient;
@@ -21,8 +23,11 @@ private:
     // Internal callback handler
     void messageCallback(char* topic, byte* payload, unsigned int length);
 
+    bool enableNotifications = true; // Default to notifications enabled
+
 public:
     MQTTClient(const char* server, int port, const char* username, const char* password);
+    void setBuzzer(Buzzer* buzzer);
 
     void connect(const char* clientId, const char* topic);
     void loop();

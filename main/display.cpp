@@ -1,6 +1,5 @@
 #include "display.h"
 #include <qrcode.h>
-#include <millis.h> // for time tracking
 
 // Constructor
 Display::Display(int width, int height) : display(width, height, &Wire, -1) {}
@@ -145,10 +144,10 @@ void Display::updateTimer() {
         char timeString[16];
         snprintf(timeString, sizeof(timeString), "Time: %02d:%02d", minutes, seconds);
 
-        clear();
-        setTextSize(1);
-        setCursor(0, 0);
-        print(timeString);
-        display();
+        display.clearDisplay();   // Clear the display
+        display.setTextSize(1);  // Set text size
+        display.setCursor(0, 0); // Set cursor position
+        display.print(timeString);
+        display.display();       // Render the changes
     }
 }
