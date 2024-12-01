@@ -33,7 +33,7 @@ bool isNotificationActive = false;  // Track whether a notification is active
 // Function to start QR Code Display
 void startQRDisplay() {
     if (!isQRDisplaying && !isNotificationActive) {
-        display.showQRCode("https://unstable.com");
+        display.showQRCode("1");
         buzzer.playNotification();
         isQRDisplaying = true;
         qrDisplayEndTime = millis() + 30000; // Display QR for 30 seconds
@@ -47,7 +47,7 @@ void setup() {
     // Initialize components
     buzzer.playNotification();
     display.begin();
-    display.showStartupCool("Initialising", "unsTable: Linak Deskline");
+    display.showStartupCool("Initialising", "unsTable");
 
     mqttClient.setDisplay(&display);
     mqttClient.setBuzzer(&buzzer);

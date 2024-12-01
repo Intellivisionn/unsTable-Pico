@@ -36,7 +36,6 @@ void Display::showText(const char* message) {
     display.print(message);
     display.display();
 }
-
 // Display a QR code on the screen
 void Display::showQRCode(const char* content) {
     if (currentDisplayState != QR_CODE) {
@@ -51,6 +50,7 @@ void Display::showQRCode(const char* content) {
     int offset_x = (display.width() - qrcode.size * 2) / 2;
     int offset_y = (display.height() - qrcode.size * 2) / 2;
 
+    // Display the QR code
     for (uint8_t y = 0; y < qrcode.size; y++) {
         for (uint8_t x = 0; x < qrcode.size; x++) {
             if (qrcode_getModule(&qrcode, x, y)) {
@@ -58,6 +58,16 @@ void Display::showQRCode(const char* content) {
             }
         }
     }
+
+    // Display the first 3 characters of content on the left side, centered vertically
+    char firstThreeChars[4];
+    strncpy(firstThreeChars, content, 3);
+    firstThreeChars[3] = '\0';
+
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, (display.height() - 8) / 2);  // 8 is the approximate height of one line of text
+    display.print(firstThreeChars);
 
     display.display();
 }
@@ -180,4 +190,13 @@ void Display::showStartupCool(const char* line1, const char* line2) {
         display.display();
         delay(50); // Scrolling speed
     }
+}
+
+long Display::getTimerDetails() {
+    unsigned long elapsed = 0;
+    if (timerRunning) {
+        Serial.println("Timer is running.");
+        elapsed = (millis() - startTime) / 1000; // Convert milliseconds to seconds
+    }
+    return elapsed;
 }

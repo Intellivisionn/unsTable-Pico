@@ -39,6 +39,9 @@ public:
     // Update the timer display
     void updateTimer();
 
+    // Get the current timer details
+    long getTimerDetails();
+
     // Animations (startup animations, etc.)
     void showStartupScrolling(const char* message);
     void showStartupTyping(const char* line1, const char* line2);

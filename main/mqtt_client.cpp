@@ -1,5 +1,6 @@
 #include "mqtt_client.h"
 #include <ArduinoJson.h>
+#include "config.h"
 
 // Define the static instance member
 MQTTClient* MQTTClient::instance = nullptr;
@@ -84,7 +85,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
         case 1: // Alert
             if (content) {
                 if (buzzer) buzzer->playNotification();
-                String alertMessage = String("ALERT: ") + content;
+                String alertMessage = content;
                 display->showText(alertMessage.c_str());
                 isNotificationActive = true; // Mark notification as active
                 notificationEndTime = millis() + 15000; // Show for 60 seconds
@@ -111,6 +112,17 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
                 }
             }
             break;
+
+        case 4: // Custom action
+        {
+            String topic = String(mqttTopic) + "timer"; // Create the topic
+            const char* topicCStr = topic.c_str(); // Explicitly convert to const char*
+            String timerDetails = String(display->getTimerDetails()); // Get timer details as String
+            const char* timerDetailsCStr = timerDetails.c_str(); // Convert to const char*            MQTTClient::publishMessage(topic, String(display->getTimerDetails()).c_str());
+            
+            publishMessage(topicCStr, timerDetailsCStr);
+        }
+        break;
 
         default:
             Serial.println("Unknown action received.");
@@ -153,5 +165,17 @@ void MQTTClient::loop() {
     // Check if the notification needs to be cleared
     if (isNotificationActive && millis() > notificationEndTime) {
         clearNotification();
+    }
+}
+
+void MQTTClient::publishMessage(const char* topic, const char* message) {
+    if (mqttClient.connected()) {
+        if (mqttClient.publish(topic, message)) {
+            Serial.println("Message published successfully.");
+        } else {
+            Serial.println("Failed to publish message.");
+        }
+    } else {
+        Serial.println("Not connected to MQTT broker. Cannot publish message.");
     }
 }

@@ -29,6 +29,8 @@ private:
 
     bool enableNotifications = true; // Default to notifications enabled
 
+    void publishMessage(const char* topic, const char* message);
+
 public:
     bool notificationActive() const { return isNotificationActive; }
     MQTTClient(const char* server, int port, const char* username, const char* password);
