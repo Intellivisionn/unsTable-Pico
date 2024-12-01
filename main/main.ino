@@ -33,7 +33,7 @@ bool isNotificationActive = false;  // Track whether a notification is active
 // Function to start QR Code Display
 void startQRDisplay() {
     if (!isQRDisplaying && !isNotificationActive) {
-        display.showQRCode("1");
+        display.showQRCode(mqttTopic);
         buzzer.playNotification();
         isQRDisplaying = true;
         qrDisplayEndTime = millis() + 30000; // Display QR for 30 seconds

@@ -64,7 +64,7 @@ void Display::showQRCode(const char* content) {
     strncpy(firstThreeChars, content, 3);
     firstThreeChars[3] = '\0';
 
-    display.setTextSize(4);
+    display.setTextSize(2);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, (display.height() - 8) / 2);  // 8 is the approximate height of one line of text
     display.print(firstThreeChars);
