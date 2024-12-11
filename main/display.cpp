@@ -61,10 +61,10 @@ void Display::showQRCode(const char* content) {
 
     // Display the first 3 characters of content on the left side, centered vertically
     char firstThreeChars[4];
-    strncpy(firstThreeChars, content, 3);
-    firstThreeChars[3] = '\0';
+    strncpy(firstThreeChars, content, 4);
+    firstThreeChars[4] = '\0';
 
-    display.setTextSize(2);
+    display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     display.setCursor(0, (display.height() - 8) / 2);  // 8 is the approximate height of one line of text
     display.print(firstThreeChars);
