@@ -42,6 +42,8 @@ public:
 
     void setDisplay(Display* display);
 
+    long calculateElapsedTime(const String& startTimeStr);
+
     // Static callback function
     static void staticCallback(char* topic, uint8_t* payload, unsigned int length);
 };

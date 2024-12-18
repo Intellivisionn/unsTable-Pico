@@ -1,6 +1,7 @@
 #include "mqtt_client.h"
 #include <ArduinoJson.h>
 #include "config.h"
+#include "apiconnector.h"
 
 // Define the static instance member
 MQTTClient* MQTTClient::instance = nullptr;
@@ -72,61 +73,74 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
     // Perform actions based on `action` value
     switch (action) {
         case 0: // User connecting
-            if (content) {
-                if (buzzer) buzzer->playNotification();
-                String welcomeMessage = String("Hello, ") + content;
-                display->showText(welcomeMessage.c_str());
-                display->startTimer();
-                isNotificationActive = true; // Mark notification as active
-                notificationEndTime = millis() + 10000; // Show for 10 seconds
-            }
-            break;
+          if (content) {
+              // Parse user_id from the content
+              String userId = String(content);
 
-        case 1: // Alert
-            if (content) {
-                if (buzzer) buzzer->playNotification();
-                String alertMessage = content;
-                display->showText(alertMessage.c_str());
-                isNotificationActive = true; // Mark notification as active
-                notificationEndTime = millis() + 15000; // Show for 60 seconds
-            }
-            break;
+              // Create an instance of APIConnector
+              APIConnector apiConnector;
 
-        case 2: // User disconnecting
-            display->showText("Goodbye!");
-            if (buzzer) buzzer->playNotification();
-            display->stopTimer();
-            isNotificationActive = true; // Mark notification as active
-            notificationEndTime = millis() + 2000; // Show for 2 seconds
-            break;
+              // Fetch user settings
+              String endpoint = "/settings?user_id=eq." + userId;
+              String settingsResponse = apiConnector.get(endpoint);
+              DynamicJsonDocument settingsDoc(512);
+              deserializeJson(settingsDoc, settingsResponse);
 
-        case 3: // Toggle Notifications
-            if (content && buzzer) {
-                enableNotifications = strcmp(content, "True") == 0;
-                buzzer->setEnabled(enableNotifications);
-                if (display) {
-                    display->showText(enableNotifications ? "Notifications Enabled" : "Notifications Disabled");
-                    if (enableNotifications && buzzer) buzzer->playNotification(); // Trigger sound if notifications are enabled
-                    isNotificationActive = true;
-                    notificationEndTime = millis() + 2000; // Show for 2 seconds
-                }
-            }
-            break;
+              if (settingsDoc.size() > 0) {
+                  bool notificationsEnabled = settingsDoc[0]["notifications_enabled"];
+                  int standUpReminderMinutes = settingsDoc[0]["stand_up_reminder_minutes"];
+                  int breakReminderMinutes = settingsDoc[0]["break_reminder_minutes"];
 
-        case 4: // Custom action
-        {
-            String topic = String(mqttTopic) + "timer"; // Create the topic
-            const char* topicCStr = topic.c_str(); // Explicitly convert to const char*
-            String timerDetails = String(display->getTimerDetails()); // Get timer details as String
-            const char* timerDetailsCStr = timerDetails.c_str(); // Convert to const char*            MQTTClient::publishMessage(topic, String(display->getTimerDetails()).c_str());
-            
-            publishMessage(topicCStr, timerDetailsCStr);
-        }
-        break;
+                  // Set notifications state
+                  enableNotifications = notificationsEnabled;
+
+                  // Fetch session data
+                  String sessionEndpoint = "/sessions?table_id=eq." + String(topic) + "&user_id=eq." + userId + "&is_working_now=eq.true";
+                  String sessionResponse = apiConnector.get(sessionEndpoint);
+                  DynamicJsonDocument sessionDoc(512);
+                  deserializeJson(sessionDoc, sessionResponse);
+
+                  if (sessionDoc.size() > 0) {
+                      String startTimeStr = sessionDoc[0]["start_time"];
+                      // Convert start_time to timestamp and calculate elapsed time
+                      long elapsedTime = calculateElapsedTime(startTimeStr);
+
+                      // Update display with elapsed timer and notification
+                      if (display) {
+                          display->showText("Session Active");
+                          display->startTimer(); // Start the timer
+                          display->updateTimer(elapsedTime); // Pass the calculated elapsed time
+                      }
+
+                      Serial.print("Elapsed time: ");
+                      Serial.println(elapsedTime);
+                  } else {
+                      Serial.println("No active session found.");
+                  }
+
+              } else {
+                  Serial.println("Settings not found for user.");
+              }
+
+              if (buzzer && enableNotifications) {
+                  buzzer->playNotification();
+              }
+
+              String welcomeMessage = String("Welcome, ") + content;
+              display->showText(welcomeMessage.c_str());
+              isNotificationActive = true;
+              notificationEndTime = millis() + 10000; // 10 seconds
+          }
+          break;
 
         default:
             Serial.println("Unknown action received.");
             break;
+
+        String topic = String(mqttTopic) + "response"; // Create the topic
+        const char* topicCStr = topic.c_str(); // Explicitly convert to const char*
+        const char* response = "1";
+        publishMessage(topicCStr, response);
     }
 }
 
@@ -178,4 +192,21 @@ void MQTTClient::publishMessage(const char* topic, const char* message) {
     } else {
         Serial.println("Not connected to MQTT broker. Cannot publish message.");
     }
+}
+
+long MQTTClient::calculateElapsedTime(const String& startTimeStr) {
+    // Parse start_time string to timestamp
+    // Assuming format: "2024-12-18T12:34:56.789Z"
+    tm startTime;
+    sscanf(startTimeStr.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d",
+           &startTime.tm_year, &startTime.tm_mon, &startTime.tm_mday,
+           &startTime.tm_hour, &startTime.tm_min, &startTime.tm_sec);
+
+    startTime.tm_year -= 1900; // Adjust year
+    startTime.tm_mon -= 1;     // Adjust month
+
+    time_t startTimestamp = mktime(&startTime);
+    time_t currentTimestamp = time(nullptr);
+
+    return difftime(currentTimestamp, startTimestamp);
 }

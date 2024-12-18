@@ -86,9 +86,11 @@ void Display::stopTimer() {
 }
 
 // Update the timer display
-void Display::updateTimer() {
+void Display::updateTimer(unsigned long externalElapsedTime) {
     if (timerRunning) {
-        unsigned long elapsed = millis() - startTime;
+        // Determine the elapsed time
+        unsigned long elapsed = externalElapsedTime > 0 ? externalElapsedTime * 1000 : (millis() - startTime);
+        
         int seconds = (elapsed / 1000) % 60;
         int minutes = (elapsed / 1000) / 60;
 

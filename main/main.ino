@@ -96,5 +96,5 @@ void loop() {
         // If you want to keep it longer, adjust the condition here.
         isNotificationActive = false;
     }
-    display.updateTimer();
+    display.updateTimer(0);
 }

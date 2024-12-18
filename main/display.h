@@ -37,7 +37,7 @@ public:
     void stopTimer();
 
     // Update the timer display
-    void updateTimer();
+    void updateTimer(unsigned long externalElapsedTime);
 
     // Get the current timer details
     long getTimerDetails();

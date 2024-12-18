@@ -1,3 +1,4 @@
+#ifndef APICONNECTOR_H
 #define APICONNECTOR_H
 
 #include <ArduinoJson.h>
