@@ -4,10 +4,6 @@
 #include <Adafruit_SSD1306.h>
 #include <Wire.h>
 
-// Define the display width and height
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-
 // Display state definitions
 #define NONE 0
 #define TEXT 1
@@ -31,7 +27,7 @@ public:
     void showQRCode(const char* content);
 
     // Start the timer
-    void startTimer();
+    void startTimer(long unsigned int);
 
     // Stop the timer (clear when logout or disconnect)
     void stopTimer();
@@ -39,13 +35,12 @@ public:
     // Update the timer display
     void updateTimer();
 
-    // Get the current timer details
-    long getTimerDetails();
-
     // Animations (startup animations, etc.)
     void showStartupScrolling(const char* message);
     void showStartupTyping(const char* line1, const char* line2);
     void showStartupCool(const char* line1, const char* line2);
+    
+    unsigned long getElapsedTime();
 
 private:
     Adafruit_SSD1306 display;

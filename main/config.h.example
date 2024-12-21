@@ -2,15 +2,15 @@
 #define CONFIG_H
 
 // Wi-Fi Configuration
-const char* ssid = "";
-const char* password = "";
+inline const char* ssid = "";
+inline const char* password = "";
 
 // MQTT Configuration
-const char* mqttServer = "";
-const int mqttPort = 8883;
-const char* mqttUsername = "PicoW";
-const char* mqttPassword = "";
-const char* mqttTopic = "1"; //Table ID
+inline const char* mqttServer = "";
+inline const int mqttPort = 8883;
+inline const char* mqttUsername = "PicoW";
+inline const char* mqttPassword = "";
+inline const char* mqttTopic = "1"; //Table ID
 
 // Pin Configuration
 #define BUTTON_PIN 10

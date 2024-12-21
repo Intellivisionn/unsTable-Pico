@@ -28,6 +28,11 @@ private:
     void messageCallback(char* topic, byte* payload, unsigned int length);
 
     bool enableNotifications = true; // Default to notifications enabled
+    int standupReminderTime = 120;   // Default standupReminderTim
+    int breakReminderTime = 60;         // Default breakReminderTime'
+
+    unsigned long nextStandupTime = 0;
+    unsigned long nextBreakTime = 0;
 
     void publishMessage(const char* topic, const char* message);
 
@@ -44,6 +49,8 @@ public:
 
     // Static callback function
     static void staticCallback(char* topic, uint8_t* payload, unsigned int length);
+
+    void scheduleNotifications();
 };
 
 #endif

@@ -8,7 +8,7 @@ MQTTClient* MQTTClient::instance = nullptr;
 // Constructor
 MQTTClient::MQTTClient(const char* server, int port, const char* username, const char* password)
     : mqttClient(secureClient), mqttUsername(username), mqttPassword(password), display(nullptr), buzzer(nullptr),
-      enableNotifications(true), notificationEndTime(0), isNotificationActive(false) {
+      enableNotifications(false), notificationEndTime(0), isNotificationActive(false) {
     mqttClient.setServer(server, port);
     secureClient.setInsecure(); // Simplify TLS handling
     instance = this;            // Assign this instance to the static pointer
@@ -19,6 +19,8 @@ void MQTTClient::connect(const char* clientId, const char* topic) {
     this->topic = topic; // Store the topic
     mqttClient.setCallback(staticCallback); // Set the static callback
 
+    int retries = 0;
+
     while (!mqttClient.connected()) {
         Serial.print("Connecting to MQTT...");
         if (mqttClient.connect(clientId, mqttUsername, mqttPassword)) {
@@ -26,8 +28,13 @@ void MQTTClient::connect(const char* clientId, const char* topic) {
             mqttClient.subscribe(topic);
             Serial.println("Subscribed to topic: " + String(topic));
         } else {
+            if (retries >= 5) {
+                Serial.println("Failed to connect to MQTT broker. Retries exhausted.");
+                return;
+            }
             Serial.print("Failed with state ");
             Serial.println(mqttClient.state());
+            retries++;
             delay(5000); // Retry after 5 seconds
         }
     }
@@ -53,7 +60,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
     Serial.println(message);
 
     // Parse the JSON payload
-    DynamicJsonDocument doc(200); // Use DynamicJsonDocument to avoid deprecation warning
+    DynamicJsonDocument doc(256); // Increased size for nested JSON
     DeserializationError error = deserializeJson(doc, message);
 
     if (error) {
@@ -64,69 +71,101 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
 
     // Extract data
     int action = doc["action"];
-    const char* content = doc["content"];
+    JsonObject content = doc["content"]; // Correctly handle `content` as an object
 
-    // Clear any active notification before handling the new message
-    clearNotification();
+    Serial.print("Action: ");
+    Serial.println(action);
+
+    if (content.isNull()) {
+        Serial.println("Content is missing or not an object.");
+        return;
+    }
+
+    String responseTopic = String(mqttTopic) + "response";
+    const char* responseTopicCStr = responseTopic.c_str();
+    const char* response = "1";
+    publishMessage(responseTopicCStr, response);
+
+    clearNotification(); // Clear the current notification    
 
     // Perform actions based on `action` value
     switch (action) {
         case 0: // User connecting
-            if (content) {
-                if (buzzer) buzzer->playNotification();
-                String welcomeMessage = String("Hello, ") + content;
-                display->showText(welcomeMessage.c_str());
-                display->startTimer();
-                isNotificationActive = true; // Mark notification as active
-                notificationEndTime = millis() + 10000; // Show for 10 seconds
-            }
-            break;
-
-        case 1: // Alert
-            if (content) {
-                if (buzzer) buzzer->playNotification();
-                String alertMessage = content;
-                display->showText(alertMessage.c_str());
-                isNotificationActive = true; // Mark notification as active
-                notificationEndTime = millis() + 15000; // Show for 60 seconds
-            }
-            break;
-
-        case 2: // User disconnecting
-            display->showText("Goodbye!");
-            if (buzzer) buzzer->playNotification();
-            display->stopTimer();
-            isNotificationActive = true; // Mark notification as active
-            notificationEndTime = millis() + 2000; // Show for 2 seconds
-            break;
-
-        case 3: // Toggle Notifications
-            if (content && buzzer) {
-                enableNotifications = strcmp(content, "True") == 0;
+            {
+                // Extract nested values from `content`
+                const char* username = content["username"];
+                enableNotifications = content["notifications"];
                 buzzer->setEnabled(enableNotifications);
-                if (display) {
-                    display->showText(enableNotifications ? "Notifications Enabled" : "Notifications Disabled");
-                    if (enableNotifications && buzzer) buzzer->playNotification(); // Trigger sound if notifications are enabled
+                unsigned long offsetMillis = content["offset"];
+                standupReminderTime = content["standupTime"];
+                breakReminderTime = content["breakTime"];
+
+                if (username) {
+                    String welcomeMessage = String("Welcome, ") + username;
+                    if (display) {
+                        display->showText(welcomeMessage.c_str());
+                        display->startTimer(offsetMillis);
+                    }
+                    notificationEndTime = millis() + 10000; // 10 seconds
                     isNotificationActive = true;
-                    notificationEndTime = millis() + 2000; // Show for 2 seconds
                 }
+                if (buzzer && enableNotifications) {
+                    buzzer->playNotification();
+                }
+                scheduleNotifications();
             }
             break;
 
-        case 4: // Custom action
-        {
-            String topic = String(mqttTopic) + "timer"; // Create the topic
-            const char* topicCStr = topic.c_str(); // Explicitly convert to const char*
-            String timerDetails = String(display->getTimerDetails()); // Get timer details as String
-            const char* timerDetailsCStr = timerDetails.c_str(); // Convert to const char*            MQTTClient::publishMessage(topic, String(display->getTimerDetails()).c_str());
-            
-            publishMessage(topicCStr, timerDetailsCStr);
-        }
-        break;
+        case 1: // User disconnecting
+            if (display) {
+                display->stopTimer();
+                display->showText("Goodbye");
+                notificationEndTime = millis() + 10000; // 10 seconds
+                isNotificationActive = true;
+
+            }
+            break;
+
+        case 2: // Update timer time
+            if (display) {
+                unsigned long offsetMillis = content["offset"];
+                display->stopTimer();
+                display->startTimer(offsetMillis);
+            }
+            break;
+
+        case 3: // User settings
+            if (buzzer) {
+                enableNotifications = content["notifications"];
+                buzzer->setEnabled(enableNotifications);
+                standupReminderTime = content["standupTime"];
+                breakReminderTime = content["breakTime"];
+                scheduleNotifications();
+            }
+            break;
 
         default:
             Serial.println("Unknown action received.");
             break;
+    }
+}
+
+// Schedule notifications based on the reminder times
+void MQTTClient::scheduleNotifications() {
+    if (enableNotifications) {
+        unsigned long displayTimeMillis = 0;
+
+        if (standupReminderTime > 0) {
+            nextStandupTime = displayTimeMillis + standupReminderTime * 60000; // Add minutes to current display time
+            Serial.print("Next standup reminder scheduled at display time (ms): ");
+            Serial.println(nextStandupTime);
+        }
+
+        if (breakReminderTime > 0) {
+            nextBreakTime = displayTimeMillis + breakReminderTime * 60000; // Add minutes to current display time
+            Serial.print("Next break reminder scheduled at display time (ms): ");
+            Serial.println(nextBreakTime);
+        }
     }
 }
 
@@ -158,11 +197,66 @@ bool MQTTClient::isConnected() {
     return mqttClient.connected();
 }
 
-// Process MQTT messages
 void MQTTClient::loop() {
     mqttClient.loop();
 
-    // Check if the notification needs to be cleared
+    if (!enableNotifications) {
+        return; // Notifications are disabled
+    }
+
+    unsigned long displayTimeMillis = display->getElapsedTime(); // Current elapsed time from display
+
+    // Check for combined notification
+    if (standupReminderTime > 0 && breakReminderTime > 0 && displayTimeMillis >= nextStandupTime && displayTimeMillis >= nextBreakTime) {
+        if (display) {
+            display->showText("Time for a break and to put table up!");
+            notificationEndTime = millis() + 10000; // 10 seconds
+            isNotificationActive = true;
+        }
+        if (buzzer) {
+            buzzer->playNotification();
+        }
+        Serial.println("Combined standup and break reminder triggered.");
+        nextStandupTime += standupReminderTime * 60000; // Reschedule the next standup reminder
+        nextBreakTime += breakReminderTime * 60000;     // Reschedule the next break reminder
+        Serial.print("Next combined reminder rescheduled to: ");
+        Serial.println(nextStandupTime);
+        return; // Exit to avoid triggering separate notifications below
+    }
+
+    // Trigger standup reminder if the elapsed display time has reached or passed the next scheduled time
+    if (standupReminderTime > 0 && displayTimeMillis >= nextStandupTime) {
+        if (display) {
+            display->showText("Time to put the table up!");
+            notificationEndTime = millis() + 10000; // 10 seconds
+            isNotificationActive = true;
+        }
+        if (buzzer) {
+            buzzer->playNotification();
+        }
+        Serial.println("Standup reminder triggered.");
+        nextStandupTime += standupReminderTime * 60000; // Schedule the next standup reminder
+        Serial.print("Next standup reminder rescheduled to: ");
+        Serial.println(nextStandupTime);
+    }
+
+    // Trigger break reminder if the elapsed display time has reached or passed the next scheduled time
+    if (breakReminderTime > 0 && displayTimeMillis >= nextBreakTime) {
+        if (display) {
+            display->showText("Time for a break!");
+            notificationEndTime = millis() + 10000; // 10 seconds
+            isNotificationActive = true;
+        }
+        if (buzzer) {
+            buzzer->playNotification();
+        }
+        Serial.println("Break reminder triggered.");
+        nextBreakTime += breakReminderTime * 60000; // Schedule the next break reminder
+        Serial.print("Next break reminder rescheduled to: ");
+        Serial.println(nextBreakTime);
+    }
+
+    // Clear notifications if the active time has passed
     if (isNotificationActive && millis() > notificationEndTime) {
         clearNotification();
     }

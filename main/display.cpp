@@ -38,51 +38,56 @@ void Display::showText(const char* message) {
 }
 // Display a QR code on the screen
 void Display::showQRCode(const char* content) {
-    if (currentDisplayState != QR_CODE) {
+    if (currentDisplayState != QR_CODE && timerRunning == false) {
         display.clearDisplay();  // Clear only when state changes
         currentDisplayState = QR_CODE;  // Set the state to QR_CODE
-    }
 
-    QRCode qrcode;
-    uint8_t qrcodeData[qrcode_getBufferSize(3)];
-    qrcode_initText(&qrcode, qrcodeData, 3, ECC_LOW, content);
+        QRCode qrcode;
+        uint8_t qrcodeData[qrcode_getBufferSize(3)];
+        qrcode_initText(&qrcode, qrcodeData, 3, ECC_LOW, content);
 
-    int offset_x = (display.width() - qrcode.size * 2) / 2;
-    int offset_y = (display.height() - qrcode.size * 2) / 2;
+        int offset_x = (display.width() - qrcode.size * 2) / 2;
+        int offset_y = (display.height() - qrcode.size * 2) / 2;
 
-    // Display the QR code
-    for (uint8_t y = 0; y < qrcode.size; y++) {
-        for (uint8_t x = 0; x < qrcode.size; x++) {
-            if (qrcode_getModule(&qrcode, x, y)) {
-                display.fillRect(offset_x + x * 2, offset_y + y * 2, 2, 2, SSD1306_WHITE);
+        // Display the QR code
+        for (uint8_t y = 0; y < qrcode.size; y++) {
+            for (uint8_t x = 0; x < qrcode.size; x++) {
+                if (qrcode_getModule(&qrcode, x, y)) {
+                    display.fillRect(offset_x + x * 2, offset_y + y * 2, 2, 2, SSD1306_WHITE);
+                }
             }
         }
+
+        // Display the first 4 characters of content on the left side, centered vertically
+        char firstFourChars[5];
+        strncpy(firstFourChars, content, 4);
+        firstFourChars[4] = '\0';
+
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(0, (display.height() - 16) / 2);  // 16 is the approximate height of two lines of text
+        display.print(firstFourChars);
+
+        display.display();
     }
-
-    // Display the first 3 characters of content on the left side, centered vertically
-    char firstThreeChars[4];
-    strncpy(firstThreeChars, content, 3);
-    firstThreeChars[3] = '\0';
-
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, (display.height() - 8) / 2);  // 8 is the approximate height of one line of text
-    display.print(firstThreeChars);
-
-    display.display();
 }
 
 // Start the timer
-void Display::startTimer() {
+void Display::startTimer(unsigned long offsetMillis = 0) {
     timerRunning = true;
-    startTime = millis(); // Save start time when timer starts
-
-    // We will not clear the display here, only update when necessary
+    startTime = millis() - offsetMillis;
 }
 
 // Stop the timer (clear when logout or disconnect)
 void Display::stopTimer() {
     timerRunning = false;
+}
+
+unsigned long Display::getElapsedTime() {
+    if (timerRunning) {
+        return millis() - startTime; // Return elapsed time in milliseconds
+    }
+    return 0; // Return 0 if the timer is not running
 }
 
 // Update the timer display
@@ -190,13 +195,4 @@ void Display::showStartupCool(const char* line1, const char* line2) {
         display.display();
         delay(50); // Scrolling speed
     }
-}
-
-long Display::getTimerDetails() {
-    unsigned long elapsed = 0;
-    if (timerRunning) {
-        Serial.println("Timer is running.");
-        elapsed = (millis() - startTime) / 1000; // Convert milliseconds to seconds
-    }
-    return elapsed;
 }
