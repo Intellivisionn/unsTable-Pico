@@ -20,7 +20,7 @@ void Buzzer::playNotification() {
             100, 100, 150 // Durations in milliseconds
         };
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 2; i >= 0; i--) { // wanted to reverse this so that its not sad
             tone(pin, melody[i], noteDurations[i]); // Play note
             delay(noteDurations[i] + 30);          // Short pause between notes
         }
