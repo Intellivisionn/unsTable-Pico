@@ -79,7 +79,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
     const char* response = "1";
     publishMessage(responseTopicCStr, response);
 
-    isNotificationActive = false; // Reset notification flag
+    clearNotification(); // Clear the current notification    
 
     // Perform actions based on `action` value
     switch (action) {
@@ -89,6 +89,8 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
                 const char* username = content["username"];
                 enableNotifications = content["notifications"];
                 unsigned long offsetMillis = content["offset"];
+                standupReminderTime = content["standupTime"];
+                breakReminderTime = content["breakTime"];
 
                 if (buzzer && enableNotifications) {
                     buzzer->playNotification();
@@ -123,9 +125,11 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
             }
             break;
 
-        case 3: // Notifications
+        case 3: // User settings
             if (buzzer) {
                 enableNotifications = content["notifications"];
+                standupReminderTime = content["standupTime"];
+                breakReminderTime = content["breakTime"];
             }
             break;
 

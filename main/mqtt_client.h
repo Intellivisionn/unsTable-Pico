@@ -28,6 +28,8 @@ private:
     void messageCallback(char* topic, byte* payload, unsigned int length);
 
     bool enableNotifications = true; // Default to notifications enabled
+    int standupReminderTime = 120;   // Default standupReminderTim
+    int breakReminderTime = 60;         // Default breakReminderTime
 
     void publishMessage(const char* topic, const char* message);
 
