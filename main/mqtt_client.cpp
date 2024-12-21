@@ -19,6 +19,8 @@ void MQTTClient::connect(const char* clientId, const char* topic) {
     this->topic = topic; // Store the topic
     mqttClient.setCallback(staticCallback); // Set the static callback
 
+    int retries = 0;
+
     while (!mqttClient.connected()) {
         Serial.print("Connecting to MQTT...");
         if (mqttClient.connect(clientId, mqttUsername, mqttPassword)) {
@@ -26,8 +28,13 @@ void MQTTClient::connect(const char* clientId, const char* topic) {
             mqttClient.subscribe(topic);
             Serial.println("Subscribed to topic: " + String(topic));
         } else {
+            if (retries >= 5) {
+                Serial.println("Failed to connect to MQTT broker. Retries exhausted.");
+                return;
+            }
             Serial.print("Failed with state ");
             Serial.println(mqttClient.state());
+            retries++;
             delay(5000); // Retry after 5 seconds
         }
     }
@@ -93,10 +100,6 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
                 standupReminderTime = content["standupTime"];
                 breakReminderTime = content["breakTime"];
 
-                if (buzzer && enableNotifications) {
-                    buzzer->playNotification();
-                }
-
                 if (username) {
                     String welcomeMessage = String("Welcome, ") + username;
                     if (display) {
@@ -105,6 +108,9 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
                     }
                     notificationEndTime = millis() + 10000; // 10 seconds
                     isNotificationActive = true;
+                }
+                if (buzzer && enableNotifications) {
+                    buzzer->playNotification();
                 }
                 scheduleNotifications();
             }

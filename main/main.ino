@@ -74,9 +74,9 @@ void loop() {
         Serial.println("MQTT disconnected. Reconnecting...");
         mqttClient.connect("PicoClient", mqttTopic);
     }
-
-    // Process MQTT messages
-    mqttClient.loop();
+    else{
+        mqttClient.loop();
+    }
 
     // Process button actions
     button.tick();

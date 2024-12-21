@@ -4,10 +4,6 @@
 #include <Adafruit_SSD1306.h>
 #include <Wire.h>
 
-// Define the display width and height
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-
 // Display state definitions
 #define NONE 0
 #define TEXT 1
