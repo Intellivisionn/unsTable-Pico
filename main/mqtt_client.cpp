@@ -88,6 +88,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
                 // Extract nested values from `content`
                 const char* username = content["username"];
                 enableNotifications = content["notifications"];
+                buzzer->setEnabled(enableNotifications);
                 unsigned long offsetMillis = content["offset"];
                 standupReminderTime = content["standupTime"];
                 breakReminderTime = content["breakTime"];
@@ -130,6 +131,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
         case 3: // User settings
             if (buzzer) {
                 enableNotifications = content["notifications"];
+                buzzer->setEnabled(enableNotifications);
                 standupReminderTime = content["standupTime"];
                 breakReminderTime = content["breakTime"];
                 scheduleNotifications();
@@ -145,7 +147,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
 // Schedule notifications based on the reminder times
 void MQTTClient::scheduleNotifications() {
     if (enableNotifications) {
-        unsigned long displayTimeMillis = display->getElapsedTime(); // Get elapsed time from display
+        unsigned long displayTimeMillis = 0;
 
         if (standupReminderTime > 0) {
             nextStandupTime = displayTimeMillis + standupReminderTime * 60000; // Add minutes to current display time
@@ -198,10 +200,30 @@ void MQTTClient::loop() {
 
     unsigned long displayTimeMillis = display->getElapsedTime(); // Current elapsed time from display
 
+    // Check for combined notification
+    if (standupReminderTime > 0 && breakReminderTime > 0 && displayTimeMillis >= nextStandupTime && displayTimeMillis >= nextBreakTime) {
+        if (display) {
+            display->showText("Time for a break and to put table up!");
+            notificationEndTime = millis() + 10000; // 10 seconds
+            isNotificationActive = true;
+        }
+        if (buzzer) {
+            buzzer->playNotification();
+        }
+        Serial.println("Combined standup and break reminder triggered.");
+        nextStandupTime += standupReminderTime * 60000; // Reschedule the next standup reminder
+        nextBreakTime += breakReminderTime * 60000;     // Reschedule the next break reminder
+        Serial.print("Next combined reminder rescheduled to: ");
+        Serial.println(nextStandupTime);
+        return; // Exit to avoid triggering separate notifications below
+    }
+
     // Trigger standup reminder if the elapsed display time has reached or passed the next scheduled time
     if (standupReminderTime > 0 && displayTimeMillis >= nextStandupTime) {
         if (display) {
-            display->showText("Time to stand up!");
+            display->showText("Time to put the table up!");
+            notificationEndTime = millis() + 10000; // 10 seconds
+            isNotificationActive = true;
         }
         if (buzzer) {
             buzzer->playNotification();
@@ -216,6 +238,8 @@ void MQTTClient::loop() {
     if (breakReminderTime > 0 && displayTimeMillis >= nextBreakTime) {
         if (display) {
             display->showText("Time for a break!");
+            notificationEndTime = millis() + 10000; // 10 seconds
+            isNotificationActive = true;
         }
         if (buzzer) {
             buzzer->playNotification();
