@@ -83,6 +83,13 @@ void Display::stopTimer() {
     timerRunning = false;
 }
 
+unsigned long Display::getElapsedTime() {
+    if (timerRunning) {
+        return millis() - startTime; // Return elapsed time in milliseconds
+    }
+    return 0; // Return 0 if the timer is not running
+}
+
 // Update the timer display
 void Display::updateTimer() {
     if (timerRunning) {

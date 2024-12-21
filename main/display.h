@@ -43,6 +43,8 @@ public:
     void showStartupScrolling(const char* message);
     void showStartupTyping(const char* line1, const char* line2);
     void showStartupCool(const char* line1, const char* line2);
+    
+    unsigned long getElapsedTime();
 
 private:
     Adafruit_SSD1306 display;

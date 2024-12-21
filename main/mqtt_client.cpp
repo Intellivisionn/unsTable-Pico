@@ -8,7 +8,7 @@ MQTTClient* MQTTClient::instance = nullptr;
 // Constructor
 MQTTClient::MQTTClient(const char* server, int port, const char* username, const char* password)
     : mqttClient(secureClient), mqttUsername(username), mqttPassword(password), display(nullptr), buzzer(nullptr),
-      enableNotifications(true), notificationEndTime(0), isNotificationActive(false) {
+      enableNotifications(false), notificationEndTime(0), isNotificationActive(false) {
     mqttClient.setServer(server, port);
     secureClient.setInsecure(); // Simplify TLS handling
     instance = this;            // Assign this instance to the static pointer
@@ -105,6 +105,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
                     notificationEndTime = millis() + 10000; // 10 seconds
                     isNotificationActive = true;
                 }
+                scheduleNotifications();
             }
             break;
 
@@ -121,6 +122,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
         case 2: // Update timer time
             if (display) {
                 unsigned long offsetMillis = content["offset"];
+                display->stopTimer();
                 display->startTimer(offsetMillis);
             }
             break;
@@ -130,12 +132,32 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
                 enableNotifications = content["notifications"];
                 standupReminderTime = content["standupTime"];
                 breakReminderTime = content["breakTime"];
+                scheduleNotifications();
             }
             break;
 
         default:
             Serial.println("Unknown action received.");
             break;
+    }
+}
+
+// Schedule notifications based on the reminder times
+void MQTTClient::scheduleNotifications() {
+    if (enableNotifications) {
+        unsigned long displayTimeMillis = display->getElapsedTime(); // Get elapsed time from display
+
+        if (standupReminderTime > 0) {
+            nextStandupTime = displayTimeMillis + standupReminderTime * 60000; // Add minutes to current display time
+            Serial.print("Next standup reminder scheduled at display time (ms): ");
+            Serial.println(nextStandupTime);
+        }
+
+        if (breakReminderTime > 0) {
+            nextBreakTime = displayTimeMillis + breakReminderTime * 60000; // Add minutes to current display time
+            Serial.print("Next break reminder scheduled at display time (ms): ");
+            Serial.println(nextBreakTime);
+        }
     }
 }
 
@@ -167,11 +189,44 @@ bool MQTTClient::isConnected() {
     return mqttClient.connected();
 }
 
-// Process MQTT messages
 void MQTTClient::loop() {
     mqttClient.loop();
 
-    // Check if the notification needs to be cleared
+    if (!enableNotifications) {
+        return; // Notifications are disabled
+    }
+
+    unsigned long displayTimeMillis = display->getElapsedTime(); // Current elapsed time from display
+
+    // Trigger standup reminder if the elapsed display time has reached or passed the next scheduled time
+    if (standupReminderTime > 0 && displayTimeMillis >= nextStandupTime) {
+        if (display) {
+            display->showText("Time to stand up!");
+        }
+        if (buzzer) {
+            buzzer->playNotification();
+        }
+        Serial.println("Standup reminder triggered.");
+        nextStandupTime += standupReminderTime * 60000; // Schedule the next standup reminder
+        Serial.print("Next standup reminder rescheduled to: ");
+        Serial.println(nextStandupTime);
+    }
+
+    // Trigger break reminder if the elapsed display time has reached or passed the next scheduled time
+    if (breakReminderTime > 0 && displayTimeMillis >= nextBreakTime) {
+        if (display) {
+            display->showText("Time for a break!");
+        }
+        if (buzzer) {
+            buzzer->playNotification();
+        }
+        Serial.println("Break reminder triggered.");
+        nextBreakTime += breakReminderTime * 60000; // Schedule the next break reminder
+        Serial.print("Next break reminder rescheduled to: ");
+        Serial.println(nextBreakTime);
+    }
+
+    // Clear notifications if the active time has passed
     if (isNotificationActive && millis() > notificationEndTime) {
         clearNotification();
     }
