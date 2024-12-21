@@ -1,7 +1,6 @@
 #include "mqtt_client.h"
 #include <ArduinoJson.h>
 #include "config.h"
-#include "apiconnector.h"
 
 // Define the static instance member
 MQTTClient* MQTTClient::instance = nullptr;
@@ -54,7 +53,7 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
     Serial.println(message);
 
     // Parse the JSON payload
-    DynamicJsonDocument doc(200); // Use DynamicJsonDocument to avoid deprecation warning
+    DynamicJsonDocument doc(256); // Increased size for nested JSON
     DeserializationError error = deserializeJson(doc, message);
 
     if (error) {
@@ -65,82 +64,74 @@ void MQTTClient::messageCallback(char* topic, byte* payload, unsigned int length
 
     // Extract data
     int action = doc["action"];
-    const char* content = doc["content"];
+    JsonObject content = doc["content"]; // Correctly handle `content` as an object
 
-    // Clear any active notification before handling the new message
-    clearNotification();
+    Serial.print("Action: ");
+    Serial.println(action);
+
+    if (content.isNull()) {
+        Serial.println("Content is missing or not an object.");
+        return;
+    }
+
+    String responseTopic = String(mqttTopic) + "response";
+    const char* responseTopicCStr = responseTopic.c_str();
+    const char* response = "1";
+    publishMessage(responseTopicCStr, response);
+
+    isNotificationActive = false; // Reset notification flag
 
     // Perform actions based on `action` value
     switch (action) {
         case 0: // User connecting
-          if (content) {
-              // Parse user_id from the content
-              String userId = String(content);
+            {
+                // Extract nested values from `content`
+                const char* username = content["username"];
+                enableNotifications = content["notifications"];
+                unsigned long offsetMillis = content["offset"];
 
-              // Create an instance of APIConnector
-              APIConnector apiConnector;
+                if (buzzer && enableNotifications) {
+                    buzzer->playNotification();
+                }
 
-              // Fetch user settings
-              String endpoint = "/settings?user_id=eq." + userId;
-              String settingsResponse = apiConnector.get(endpoint);
-              DynamicJsonDocument settingsDoc(512);
-              deserializeJson(settingsDoc, settingsResponse);
+                if (username) {
+                    String welcomeMessage = String("Welcome, ") + username;
+                    if (display) {
+                        display->showText(welcomeMessage.c_str());
+                        display->startTimer(offsetMillis);
+                    }
+                    notificationEndTime = millis() + 10000; // 10 seconds
+                    isNotificationActive = true;
+                }
+            }
+            break;
 
-              if (settingsDoc.size() > 0) {
-                  bool notificationsEnabled = settingsDoc[0]["notifications_enabled"];
-                  int standUpReminderMinutes = settingsDoc[0]["stand_up_reminder_minutes"];
-                  int breakReminderMinutes = settingsDoc[0]["break_reminder_minutes"];
+        case 1: // User disconnecting
+            if (display) {
+                display->stopTimer();
+                display->showText("Goodbye");
+                notificationEndTime = millis() + 10000; // 10 seconds
+                isNotificationActive = true;
 
-                  // Set notifications state
-                  enableNotifications = notificationsEnabled;
+            }
+            break;
 
-                  // Fetch session data
-                  String sessionEndpoint = "/sessions?table_id=eq." + String(topic) + "&user_id=eq." + userId + "&is_working_now=eq.true";
-                  String sessionResponse = apiConnector.get(sessionEndpoint);
-                  DynamicJsonDocument sessionDoc(512);
-                  deserializeJson(sessionDoc, sessionResponse);
+        case 2: // Update timer time
+            if (display) {
+                unsigned long offsetMillis = content["offset"];
+                display->startTimer(offsetMillis);
+            }
+            break;
 
-                  if (sessionDoc.size() > 0) {
-                      String startTimeStr = sessionDoc[0]["start_time"];
-                      // Convert start_time to timestamp and calculate elapsed time
-                      long elapsedTime = calculateElapsedTime(startTimeStr);
-
-                      // Update display with elapsed timer and notification
-                      if (display) {
-                          display->showText("Session Active");
-                          display->startTimer(); // Start the timer
-                          display->updateTimer(elapsedTime); // Pass the calculated elapsed time
-                      }
-
-                      Serial.print("Elapsed time: ");
-                      Serial.println(elapsedTime);
-                  } else {
-                      Serial.println("No active session found.");
-                  }
-
-              } else {
-                  Serial.println("Settings not found for user.");
-              }
-
-              if (buzzer && enableNotifications) {
-                  buzzer->playNotification();
-              }
-
-              String welcomeMessage = String("Welcome, ") + content;
-              display->showText(welcomeMessage.c_str());
-              isNotificationActive = true;
-              notificationEndTime = millis() + 10000; // 10 seconds
-          }
-          break;
+        case 3: // Notifications
+            if (buzzer) {
+                enableNotifications = content["notifications"];
+            }
+            break;
 
         default:
             Serial.println("Unknown action received.");
             break;
-
-        String topic = String(mqttTopic) + "response"; // Create the topic
-        const char* topicCStr = topic.c_str(); // Explicitly convert to const char*
-        const char* response = "1";
-        publishMessage(topicCStr, response);
     }
 }
 
@@ -192,21 +183,4 @@ void MQTTClient::publishMessage(const char* topic, const char* message) {
     } else {
         Serial.println("Not connected to MQTT broker. Cannot publish message.");
     }
-}
-
-long MQTTClient::calculateElapsedTime(const String& startTimeStr) {
-    // Parse start_time string to timestamp
-    // Assuming format: "2024-12-18T12:34:56.789Z"
-    tm startTime;
-    sscanf(startTimeStr.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d",
-           &startTime.tm_year, &startTime.tm_mon, &startTime.tm_mday,
-           &startTime.tm_hour, &startTime.tm_min, &startTime.tm_sec);
-
-    startTime.tm_year -= 1900; // Adjust year
-    startTime.tm_mon -= 1;     // Adjust month
-
-    time_t startTimestamp = mktime(&startTime);
-    time_t currentTimestamp = time(nullptr);
-
-    return difftime(currentTimestamp, startTimestamp);
 }

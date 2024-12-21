@@ -31,16 +31,13 @@ public:
     void showQRCode(const char* content);
 
     // Start the timer
-    void startTimer();
+    void startTimer(long unsigned int);
 
     // Stop the timer (clear when logout or disconnect)
     void stopTimer();
 
     // Update the timer display
-    void updateTimer(unsigned long externalElapsedTime);
-
-    // Get the current timer details
-    long getTimerDetails();
+    void updateTimer();
 
     // Animations (startup animations, etc.)
     void showStartupScrolling(const char* message);
